@@ -25,6 +25,44 @@ function helper_createBusinessCalendar() {
 }
 
 /**
+ * ヘルパー1-B: プライベートカレンダーを自動作成
+ */
+function helper_createPrivateCalendar() {
+  const name = 'プライベート';
+  const calendar = CalendarApp.createCalendar(name, {
+    summary: '予約システムでブロック対象として扱うプライベート予定',
+    timeZone: TZ,
+  });
+  const calId = calendar.getId();
+  PropertiesService.getScriptProperties().setProperty('PRIVATE_CALENDAR_ID', calId);
+  Logger.log('✅ プライベートカレンダー作成完了');
+  Logger.log('名前: ' + name);
+  Logger.log('ID: ' + calId);
+  Logger.log('→ PRIVATE_CALENDAR_ID としてスクリプトプロパティに保存しました。');
+}
+
+/**
+ * ヘルパー1-C: 保育園タイムカレンダーを自動作成
+ * このカレンダーに予定が入っている時間だけ予約を受け付ける。
+ */
+function helper_createWorkableCalendar() {
+  const name = '保育園タイム';
+  const calendar = CalendarApp.createCalendar(name, {
+    summary: '予約受付可能な時間帯（子の保育園預け時間など）',
+    timeZone: TZ,
+  });
+  const calId = calendar.getId();
+  PropertiesService.getScriptProperties().setProperty('WORKABLE_CALENDAR_ID', calId);
+  Logger.log('✅ 保育園タイムカレンダー作成完了');
+  Logger.log('名前: ' + name);
+  Logger.log('ID: ' + calId);
+  Logger.log('→ WORKABLE_CALENDAR_ID としてスクリプトプロパティに保存しました。');
+  Logger.log('');
+  Logger.log('【重要】このカレンダーに予定を入れた時間だけ、予約枠として表示されます。');
+  Logger.log('例：「保育園預け」10:00-16:00 の予定を入れる → その時間内のみ予約可能。');
+}
+
+/**
  * ヘルパー2: 予約ログ用スプレッドシートを自動作成して設定に登録
  */
 function helper_createBookingSpreadsheet() {
@@ -45,6 +83,8 @@ function helper_createBookingSpreadsheet() {
 function helper_showConfig() {
   const keys = [
     'BUSINESS_CALENDAR_ID',
+    'PRIVATE_CALENDAR_ID',
+    'WORKABLE_CALENDAR_ID',
     'BOOKING_SHEET_ID',
     'LINE_CHANNEL_ACCESS_TOKEN',
     'OWNER_LINE_USER_ID',

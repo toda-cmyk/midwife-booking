@@ -59,6 +59,17 @@ const BUSINESS_HOURS = {
   END: '17:00',    // 営業終了時刻
 };
 
+// カレンダー構成（3カレンダー方式）
+// - BUSINESS: 予約登録先 ＋ ブロック対象（既存予約）
+// - PRIVATE: ブロック対象（プライベート予定）
+// - WORKABLE: 稼働可能時間の定義（この時間内しか予約を受け付けない）
+// WORKABLE_CALENDAR_ID が未設定の場合は営業時間（9-17時）全体を稼働可能とみなす。
+const CALENDAR_KEYS = {
+  BUSINESS: 'BUSINESS_CALENDAR_ID',   // 業務カレンダー（既存、予約登録先）
+  PRIVATE: 'PRIVATE_CALENDAR_ID',      // プライベートカレンダー
+  WORKABLE: 'WORKABLE_CALENDAR_ID',   // 保育園タイム等の稼働可能時間カレンダー
+};
+
 const MIN_DAYS_AHEAD = 2;   // 予約は最短何日先から受け付けるか
 const MAX_DAYS_AHEAD = 60;  // 最長何日先まで表示するか
 const SLOT_STEP_MINUTES = 30; // 空き枠の切り出し刻み（分）

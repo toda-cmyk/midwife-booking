@@ -2,11 +2,19 @@
  * ============================================================
  * Calendar.gs — Googleカレンダー操作
  * ============================================================
- * 業務用カレンダーから空き時間を算出し、
- * プラン時間が入る枠だけを30分刻みで返す。
+ * 3カレンダー方式で空き時間を算出する。
  *
- * 方式：業務用カレンダー（方式A）を使う前提。
- * このカレンダーに載っていない予定はすべて「空き」とみなす。
+ * - BUSINESS_CALENDAR_ID（業務カレンダー）: 予約登録先＋ブロック対象
+ * - PRIVATE_CALENDAR_ID（プライベート）    : ブロック対象
+ * - WORKABLE_CALENDAR_ID（保育園タイム等） : 稼働可能時間の定義
+ *
+ * 空き枠として表示する条件：
+ *   (営業時間9-17時内) かつ
+ *   (WORKABLEカレンダーに予定がある時間) かつ
+ *   (BUSINESSカレンダーに予定がない) かつ
+ *   (PRIVATEカレンダーに予定がない)
+ *
+ * WORKABLE未設定の場合は営業時間全体を稼働可能とみなす（後方互換）。
  */
 
 const TZ = 'Asia/Tokyo';
@@ -17,8 +25,11 @@ const TZ = 'Asia/Tokyo';
  * @return {Array<{date:string, start:string, end:string}>}
  */
 function getAvailableSlots(durationHours) {
-  const calendar = CalendarApp.getCalendarById(getConfig('BUSINESS_CALENDAR_ID'));
-  if (!calendar) throw new Error('Business calendar not found');
+  const businessCal = CalendarApp.getCalendarById(getConfig('BUSINESS_CALENDAR_ID'));
+  if (!businessCal) throw new Error('Business calendar not found');
+
+  const privateCal = getOptionalCalendar(CALENDAR_KEYS.PRIVATE);
+  const workableCal = getOptionalCalendar(CALENDAR_KEYS.WORKABLE);
 
   const today = new Date();
   const startDate = new Date(today);
@@ -29,7 +40,15 @@ function getAvailableSlots(durationHours) {
   endDate.setDate(endDate.getDate() + MAX_DAYS_AHEAD);
   endDate.setHours(23, 59, 59, 999);
 
-  const events = calendar.getEvents(startDate, endDate);
+  // ブロック対象カレンダー（業務＋プライベート）の予定を一括取得
+  const blockingEvents = businessCal.getEvents(startDate, endDate);
+  if (privateCal) {
+    const privateEvents = privateCal.getEvents(startDate, endDate);
+    privateEvents.forEach(ev => blockingEvents.push(ev));
+  }
+
+  // 稼働可能時間カレンダーの予定を取得（あれば）
+  const workableEvents = workableCal ? workableCal.getEvents(startDate, endDate) : null;
 
   const slots = [];
   const durationMin = durationHours * 60;
@@ -44,25 +63,20 @@ function getAvailableSlots(durationHours) {
     const bizStart = buildDate(d, BUSINESS_HOURS.START);
     const bizEnd = buildDate(d, BUSINESS_HOURS.END);
 
-    // その日の既存予定を抽出
-    const dayEvents = events.filter(ev => {
-      return ev.getStartTime() < bizEnd && ev.getEndTime() > bizStart;
-    }).map(ev => ({
-      start: Math.max(ev.getStartTime().getTime(), bizStart.getTime()),
-      end: Math.min(ev.getEndTime().getTime(), bizEnd.getTime()),
-    })).sort((a, b) => a.start - b.start);
+    // 稼働可能ブロックを算出（WORKABLEがあればその予定内、なければ営業時間全体）
+    const workableBlocks = workableCal
+      ? extractDayRanges(workableEvents, bizStart, bizEnd)
+      : [{ start: bizStart.getTime(), end: bizEnd.getTime() }];
 
-    // 営業時間を予定で分割して「空きブロック」を算出
+    if (workableBlocks.length === 0) continue; // その日は稼働不可
+
+    // ブロック対象（業務＋プライベート）の予定をその日の範囲で抽出
+    const dayBlocking = extractDayRanges(blockingEvents, bizStart, bizEnd);
+
+    // 稼働可能ブロックから、ブロック予定を引いて空きブロックを算出
     const freeBlocks = [];
-    let cursor = bizStart.getTime();
-    for (const ev of dayEvents) {
-      if (ev.start > cursor) {
-        freeBlocks.push({ start: cursor, end: ev.start });
-      }
-      cursor = Math.max(cursor, ev.end);
-    }
-    if (cursor < bizEnd.getTime()) {
-      freeBlocks.push({ start: cursor, end: bizEnd.getTime() });
+    for (const workable of workableBlocks) {
+      freeBlocks.push(...subtractRanges(workable, dayBlocking));
     }
 
     // 各空きブロックから30分刻みでプラン時間分の枠を切り出す
@@ -87,9 +101,13 @@ function getAvailableSlots(durationHours) {
 
 /**
  * 指定日時が予約可能かチェック（二重予約防止のための最終確認）
+ * 3カレンダー方式：業務＋プライベートのブロック判定＋WORKABLE内に含まれるか。
  */
 function checkSlotAvailable(dateStr, startTimeStr, endTimeStr) {
-  const calendar = CalendarApp.getCalendarById(getConfig('BUSINESS_CALENDAR_ID'));
+  const businessCal = CalendarApp.getCalendarById(getConfig('BUSINESS_CALENDAR_ID'));
+  const privateCal = getOptionalCalendar(CALENDAR_KEYS.PRIVATE);
+  const workableCal = getOptionalCalendar(CALENDAR_KEYS.WORKABLE);
+
   const start = buildDateTime(dateStr, startTimeStr);
   const end = buildDateTime(dateStr, endTimeStr);
 
@@ -105,13 +123,25 @@ function checkSlotAvailable(dateStr, startTimeStr, endTimeStr) {
   const bizEnd = buildDateTime(dateStr, BUSINESS_HOURS.END);
   if (start < bizStart || end > bizEnd) return false;
 
-  // 重複イベントがないか
-  const overlapping = calendar.getEvents(start, end);
-  return overlapping.length === 0;
+  // ブロック対象（業務＋プライベート）に重複がないか
+  if (businessCal.getEvents(start, end).length > 0) return false;
+  if (privateCal && privateCal.getEvents(start, end).length > 0) return false;
+
+  // WORKABLE設定時は稼働可能時間内に完全に含まれるか
+  if (workableCal) {
+    const workableEvents = workableCal.getEvents(start, end);
+    const covered = workableEvents.some(ev =>
+      ev.getStartTime().getTime() <= start.getTime() &&
+      ev.getEndTime().getTime() >= end.getTime()
+    );
+    if (!covered) return false;
+  }
+
+  return true;
 }
 
 /**
- * 予約をカレンダーに登録
+ * 予約を業務カレンダーに登録
  */
 function createCalendarEvent(booking) {
   const calendar = CalendarApp.getCalendarById(getConfig('BUSINESS_CALENDAR_ID'));
@@ -134,6 +164,57 @@ function createCalendarEvent(booking) {
 
   const event = calendar.createEvent(title, start, end, { description: description });
   return event.getId();
+}
+
+// ============================================================
+// 内部ユーティリティ
+// ============================================================
+
+/** 任意カレンダーを安全に取得（未設定ならnull、不正IDでも例外を出さずnullを返す） */
+function getOptionalCalendar(key) {
+  const id = PropertiesService.getScriptProperties().getProperty(key);
+  if (!id) return null;
+  try {
+    return CalendarApp.getCalendarById(id);
+  } catch (e) {
+    console.warn(`Optional calendar ${key} failed to load: ${e.message}`);
+    return null;
+  }
+}
+
+/**
+ * イベント配列から、指定範囲（bizStart-bizEnd）と重なる時間帯を抽出し
+ * ソート済みの {start, end} 配列（ミリ秒）を返す
+ */
+function extractDayRanges(events, bizStart, bizEnd) {
+  return events.filter(ev =>
+    ev.getStartTime() < bizEnd && ev.getEndTime() > bizStart
+  ).map(ev => ({
+    start: Math.max(ev.getStartTime().getTime(), bizStart.getTime()),
+    end: Math.min(ev.getEndTime().getTime(), bizEnd.getTime()),
+  })).sort((a, b) => a.start - b.start);
+}
+
+/**
+ * baseRange から blockRanges を引いた残り範囲を返す
+ * baseRange, blockRanges は {start, end}（ミリ秒）
+ */
+function subtractRanges(baseRange, blockRanges) {
+  const result = [];
+  let cursor = baseRange.start;
+  for (const block of blockRanges) {
+    if (block.end <= cursor) continue;
+    if (block.start >= baseRange.end) break;
+    if (block.start > cursor) {
+      result.push({ start: cursor, end: Math.min(block.start, baseRange.end) });
+    }
+    cursor = Math.max(cursor, block.end);
+    if (cursor >= baseRange.end) break;
+  }
+  if (cursor < baseRange.end) {
+    result.push({ start: cursor, end: baseRange.end });
+  }
+  return result;
 }
 
 // ============================================================
