@@ -1,0 +1,77 @@
+/**
+ * ============================================================
+ * Config.gs — 設定値の管理
+ * ============================================================
+ * すべての設定値を Script Properties から取得します。
+ * 初回セットアップ時は setupConfig() を一度だけ実行してください。
+ *
+ * Apps Scriptエディタ → プロジェクトの設定 → スクリプトプロパティ でも
+ * 手動で設定可能です。
+ */
+
+/**
+ * 初回セットアップ用：ここに実値を記入してから
+ * setupConfig() を1回だけ実行してください。
+ * 実行後は安全のため値を空欄に戻すことを推奨します。
+ */
+function setupConfig() {
+  const props = PropertiesService.getScriptProperties();
+  props.setProperties({
+    // 業務用 Google カレンダーID（カレンダー設定画面から取得）
+    BUSINESS_CALENDAR_ID: '',
+
+    // 予約ログ保存用スプレッドシートID（URLの /d/xxx/edit の xxx 部分）
+    BOOKING_SHEET_ID: '',
+
+    // LINE Messaging API チャネルアクセストークン（長期）
+    LINE_CHANNEL_ACCESS_TOKEN: '',
+
+    // オーナー（助産師）の LINE ユーザーID（通知送信先）
+    OWNER_LINE_USER_ID: '',
+
+    // オーナー（助産師）のメールアドレス（通知送信先）
+    OWNER_EMAIL: '',
+
+    // サービス名・送信元表示名
+    SERVICE_NAME: '産後ケア訪問サービス',
+    SENDER_NAME: '助産師 ○○',
+  });
+  Logger.log('Config setup complete. Review Script Properties.');
+}
+
+/** 設定値を取得するヘルパー */
+function getConfig(key) {
+  const v = PropertiesService.getScriptProperties().getProperty(key);
+  if (!v) throw new Error(`Config missing: ${key}`);
+  return v;
+}
+
+function getConfigOrDefault(key, defaultValue) {
+  const v = PropertiesService.getScriptProperties().getProperty(key);
+  return v || defaultValue;
+}
+
+// ============================================================
+// 業務ルール定数
+// ============================================================
+const BUSINESS_HOURS = {
+  START: '09:00',  // 営業開始時刻
+  END: '17:00',    // 営業終了時刻
+};
+
+const MIN_DAYS_AHEAD = 2;   // 予約は最短何日先から受け付けるか
+const MAX_DAYS_AHEAD = 60;  // 最長何日先まで表示するか
+const SLOT_STEP_MINUTES = 30; // 空き枠の切り出し刻み（分）
+
+// プラン定義（デモHTMLと一致させる）
+const PLANS = {
+  premium: { id: 'premium', name: 'オーダーメイドプラン', badge: 'プレミアム', durationHours: 3 },
+  basic:   { id: 'basic',   name: 'シッタープラン＋選べるケア', badge: 'ベーシック', durationHours: 2.5 },
+  special: { id: 'special', name: '1日貸切 産後徹底伴走VIPプラン', badge: 'スペシャル', durationHours: 7 },
+};
+
+function getPlan(planId) {
+  const p = PLANS[planId];
+  if (!p) throw new Error(`Unknown plan: ${planId}`);
+  return p;
+}

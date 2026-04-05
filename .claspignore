@@ -1,0 +1,5 @@
+# clasp は rootDir (=gas) 配下のみを対象にする設定
+# このファイル内のパターンは rootDir からの相対パス
+README.md
+node_modules/**
+.git/**

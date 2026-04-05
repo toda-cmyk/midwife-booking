@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>産後ケア予約｜デモ</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    background: #f7f3ee;
+    color: #3a332d;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: #fdfbf7;
+    box-shadow: 0 0 20px rgba(0,0,0,0.03);
+  }
+  .header {
+    background: #c4a285;
+    color: #fff;
+    padding: 18px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 2px 8px rgba(196, 162, 133, 0.2);
+  }
+  .header .back {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+    margin-left: -8px;
+  }
+  .header .back:disabled { opacity: 0; pointer-events: none; }
+  .header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .step-indicator {
+    display: flex;
+    justify-content: center;
+    padding: 14px 20px 8px;
+    gap: 6px;
+    background: #fdfbf7;
+  }
+  .step-dot {
+    width: 22px;
+    height: 4px;
+    background: #e5dcd0;
+    border-radius: 2px;
+    transition: background 0.3s;
+  }
+  .step-dot.active { background: #c4a285; }
+  .step-dot.done { background: #a88564; }
+  .view { display: none; padding: 20px; animation: fadeIn 0.3s ease; }
+  .view.active { display: block; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .view-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #3a332d;
+  }
+  .view-subtitle {
+    font-size: 13px;
+    color: #8a7a6a;
+    margin-bottom: 24px;
+  }
+
+  /* プラン選択 */
+  .plan-card {
+    background: #fff;
+    border: 1.5px solid #e5dcd0;
+    border-radius: 12px;
+    padding: 18px 18px 18px 56px;
+    margin-bottom: 14px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .plan-card:active { transform: scale(0.98); }
+  .plan-card:hover { border-color: #c4a285; box-shadow: 0 4px 12px rgba(196, 162, 133, 0.1); }
+  .plan-number {
+    position: absolute;
+    left: 16px;
+    top: 18px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid #c4a285;
+    color: #c4a285;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .plan-badge {
+    display: inline-block;
+    font-size: 11px;
+    color: #a88564;
+    background: #f3ebe0;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .plan-name {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #3a332d;
+  }
+  .plan-meta {
+    font-size: 13px;
+    color: #8a7a6a;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .plan-meta .duration {
+    font-weight: 600;
+    color: #c4a285;
+  }
+  .plan-notes {
+    margin-top: 18px;
+    padding: 14px;
+    background: #f3ebe0;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #6d5d4e;
+    line-height: 1.7;
+  }
+  .plan-notes p + p { margin-top: 8px; }
+
+  /* カレンダー */
+  .selected-plan-bar {
+    background: #f3ebe0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    color: #6d5d4e;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .selected-plan-bar .change {
+    color: #c4a285;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 12px;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  .calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .calendar-nav-btn {
+    background: #fff;
+    border: 1px solid #e5dcd0;
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #6d5d4e;
+  }
+  .calendar-nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .calendar-month {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+  .calendar-weekday {
+    text-align: center;
+    font-size: 11px;
+    color: #8a7a6a;
+    padding: 6px 0;
+    font-weight: 500;
+  }
+  .calendar-weekday.sun { color: #d97878; }
+  .calendar-weekday.sat { color: #7898d9; }
+  .calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    position: relative;
+    background: #fff;
+    border: 1px solid transparent;
+  }
+  .calendar-day.empty { visibility: hidden; }
+  .calendar-day.disabled {
+    color: #d0c5b7;
+    background: #f7f3ee;
+    cursor: not-allowed;
+  }
+  .calendar-day.available {
+    color: #3a332d;
+    background: #fff;
+    border-color: #e5dcd0;
+  }
+  .calendar-day.available:hover { border-color: #c4a285; background: #faf6f0; }
+  .calendar-day.selected {
+    background: #c4a285;
+    color: #fff;
+    border-color: #c4a285;
+  }
+  .calendar-day .slot-indicator {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #c4a285;
+    margin-top: 2px;
+  }
+  .calendar-day.selected .slot-indicator { background: #fff; }
+  .calendar-day.disabled .slot-indicator { display: none; }
+
+  /* 時間枠 */
+  .time-slots-section {
+    margin-top: 20px;
+  }
+  .time-slots-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #3a332d;
+  }
+  .time-slots-empty {
+    text-align: center;
+    padding: 30px 20px;
+    color: #8a7a6a;
+    font-size: 13px;
+    background: #faf6f0;
+    border-radius: 8px;
+  }
+  .time-slots-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .time-slot {
+    background: #fff;
+    border: 1.5px solid #e5dcd0;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #3a332d;
+    transition: all 0.2s;
+  }
+  .time-slot:hover { border-color: #c4a285; }
+  .time-slot:active { transform: scale(0.97); }
+
+  /* フォーム */
+  .form-group {
+    margin-bottom: 18px;
+  }
+  .form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #3a332d;
+  }
+  .form-label .required {
+    color: #d97878;
+    font-size: 11px;
+    margin-left: 4px;
+    font-weight: 500;
+  }
+  .form-input, .form-textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid #e5dcd0;
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+    background: #fff;
+    color: #3a332d;
+  }
+  .form-input:focus, .form-textarea:focus {
+    outline: none;
+    border-color: #c4a285;
+  }
+  .form-textarea { resize: vertical; min-height: 70px; }
+  .form-error {
+    display: block;
+    color: #d97878;
+    font-size: 12px;
+    margin-top: 4px;
+    min-height: 16px;
+  }
+  .booking-summary {
+    background: #f3ebe0;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 20px;
+    font-size: 13px;
+  }
+  .booking-summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+  }
+  .booking-summary-row .label { color: #8a7a6a; }
+  .booking-summary-row .value { font-weight: 600; color: #3a332d; }
+
+  /* 同意書 */
+  .consent-box {
+    background: #fff;
+    border: 1px solid #e5dcd0;
+    border-radius: 8px;
+    padding: 18px;
+    max-height: 380px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+    font-size: 13px;
+    line-height: 1.8;
+    color: #3a332d;
+  }
+  .consent-box h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    margin-top: 14px;
+    color: #3a332d;
+  }
+  .consent-box h3:first-child { margin-top: 0; }
+  .consent-box p { margin-bottom: 8px; }
+  .consent-box ul { margin: 6px 0 8px 20px; }
+  .consent-box li { margin-bottom: 4px; }
+  .consent-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px;
+    background: #faf6f0;
+    border: 1.5px solid #e5dcd0;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 20px;
+    transition: all 0.2s;
+  }
+  .consent-check.checked { border-color: #c4a285; background: #f3ebe0; }
+  .consent-check input {
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+    cursor: pointer;
+    accent-color: #c4a285;
+    flex-shrink: 0;
+  }
+  .consent-check label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #3a332d;
+    cursor: pointer;
+    flex: 1;
+  }
+  .consent-reminder {
+    background: #fff4e6;
+    border-left: 3px solid #e0a868;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #8a6d4e;
+    border-radius: 4px;
+    margin-bottom: 16px;
+  }
+
+  /* 完了画面 */
+  .complete-icon {
+    width: 64px;
+    height: 64px;
+    background: #c4a285;
+    border-radius: 50%;
+    margin: 20px auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 32px;
+  }
+  .complete-title {
+    text-align: center;
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .complete-message {
+    text-align: center;
+    font-size: 13px;
+    color: #6d5d4e;
+    line-height: 1.8;
+    margin-bottom: 24px;
+  }
+  .complete-summary {
+    background: #faf6f0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .complete-summary h4 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #3a332d;
+  }
+  .complete-notice {
+    background: #fff4e6;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 12px;
+    color: #8a6d4e;
+    line-height: 1.7;
+    margin-bottom: 24px;
+  }
+
+  /* ボタン */
+  .btn-primary {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    background: #c4a285;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:hover:not(:disabled) { background: #b08e71; }
+  .btn-primary:disabled {
+    background: #d0c5b7;
+    cursor: not-allowed;
+  }
+  .btn-secondary {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    background: #fff;
+    color: #c4a285;
+    border: 1.5px solid #c4a285;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    margin-top: 10px;
+  }
+
+  .demo-banner {
+    background: #fff4e6;
+    color: #8a6d4e;
+    text-align: center;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 500;
+    border-bottom: 1px solid #f0d9b0;
+  }
+  .demo-banner.live { background: #e6f4e6; color: #4e8a5e; border-bottom-color: #b0e0b8; }
+
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(253, 251, 247, 0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .loading-overlay.active { display: flex; }
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #e5dcd0;
+    border-top-color: #c4a285;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text {
+    position: absolute;
+    margin-top: 80px;
+    font-size: 12px;
+    color: #8a7a6a;
+  }
+
+  .error-toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #d97878;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    max-width: 90%;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 200;
+    display: none;
+  }
+  .error-toast.active { display: block; animation: fadeInUp 0.3s; }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translate(-50%, 10px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="demo-banner" id="modeBanner">🔧 デモモード — モックデータで動作中</div>
+  <div class="header">
+    <button class="back" id="backBtn" disabled>←</button>
+    <h1 id="headerTitle">産後ケア予約</h1>
+  </div>
+  <div class="step-indicator" id="stepIndicator">
+    <div class="step-dot active"></div>
+    <div class="step-dot"></div>
+    <div class="step-dot"></div>
+    <div class="step-dot"></div>
+    <div class="step-dot"></div>
+  </div>
+
+  <!-- Step 1: プラン選択 -->
+  <div class="view active" id="view-plan">
+    <div class="view-title">プランをお選びください</div>
+    <div class="view-subtitle">ご希望のケアプランを選択してください</div>
+
+    <div class="plan-card" data-plan="premium" data-duration="3" data-name="プレミアム オーダーメイドプラン">
+      <div class="plan-number">1</div>
+      <div class="plan-badge">プレミアム</div>
+      <div class="plan-name">オーダーメイドプラン</div>
+      <div class="plan-meta">
+        <span class="duration">3時間</span>
+        <span>¥---</span>
+      </div>
+    </div>
+
+    <div class="plan-card" data-plan="basic" data-duration="2.5" data-name="ベーシック シッタープラン">
+      <div class="plan-number">2</div>
+      <div class="plan-badge">ベーシック</div>
+      <div class="plan-name">シッタープラン＋選べるケア</div>
+      <div class="plan-meta">
+        <span class="duration">2.5時間</span>
+        <span>¥---</span>
+      </div>
+    </div>
+
+    <div class="plan-card" data-plan="special" data-duration="7" data-name="スペシャル VIPプラン">
+      <div class="plan-number">3</div>
+      <div class="plan-badge">スペシャル</div>
+      <div class="plan-name">1日貸切 産後徹底伴走VIPプラン</div>
+      <div class="plan-meta">
+        <span class="duration">7時間</span>
+        <span>¥---</span>
+      </div>
+    </div>
+
+    <div class="plan-notes">
+      <p>※ 初回は冒頭15分程度、カウンセリング（母子の状況確認）の時間を頂戴します。各プランの時間に含まれます。</p>
+      <p>※ 当日のママとお子さまの体調を最優先に、臨機応変に寄り添います。</p>
+    </div>
+  </div>
+
+  <!-- Step 2: カレンダー -->
+  <div class="view" id="view-calendar">
+    <div class="selected-plan-bar">
+      <span id="selectedPlanText">—</span>
+      <button class="change" id="changePlanBtn">変更</button>
+    </div>
+
+    <div class="calendar-header">
+      <button class="calendar-nav-btn" id="prevMonthBtn">‹ 前月</button>
+      <div class="calendar-month" id="calendarMonth">—</div>
+      <button class="calendar-nav-btn" id="nextMonthBtn">翌月 ›</button>
+    </div>
+
+    <div class="calendar-grid" id="calendarGrid"></div>
+
+    <div class="time-slots-section" id="timeSlotsSection" style="display:none;">
+      <div class="time-slots-title" id="timeSlotsTitle">時間を選択</div>
+      <div id="timeSlotsContent"></div>
+    </div>
+  </div>
+
+  <!-- Step 3: フォーム -->
+  <div class="view" id="view-form">
+    <div class="view-title">予約情報のご入力</div>
+    <div class="view-subtitle">ご予約内容をご確認のうえ、必要事項をご入力ください</div>
+
+    <div class="booking-summary" id="bookingSummary"></div>
+
+    <form id="bookingForm" novalidate>
+      <div class="form-group">
+        <label class="form-label">お名前<span class="required">必須</span></label>
+        <input type="text" class="form-input" id="inputName" placeholder="山田 花子">
+        <span class="form-error" id="errorName"></span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ご住所<span class="required">必須</span></label>
+        <textarea class="form-textarea" id="inputAddress" placeholder="〒000-0000 ○○県○○市○○"></textarea>
+        <span class="form-error" id="errorAddress"></span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">電話番号<span class="required">必須</span></label>
+        <input type="tel" class="form-input" id="inputPhone" placeholder="090-0000-0000">
+        <span class="form-error" id="errorPhone"></span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">メールアドレス<span class="required">必須</span></label>
+        <input type="email" class="form-input" id="inputEmail" placeholder="example@email.com">
+        <span class="form-error" id="errorEmail"></span>
+      </div>
+      <button type="submit" class="btn-primary">次へ（同意書の確認）</button>
+    </form>
+  </div>
+
+  <!-- Step 4: 同意書 -->
+  <div class="view" id="view-consent">
+    <div class="view-title">同意書のご確認</div>
+    <div class="view-subtitle">内容をご確認のうえ、同意をお願いいたします</div>
+
+    <div class="consent-reminder">
+      ⚠ 同意書の確認を2日以内に完了いただけない場合、ご予約は自動的に解消されます。
+    </div>
+
+    <div class="consent-box">
+      <h3>産後ケアサービス同意書</h3>
+      <p>この同意書は、本サービスをご利用いただくにあたり、ご利用者様とサービス提供者の間で共通の理解を持つために作成されたものです。</p>
+
+      <h3>1. サービス内容について</h3>
+      <p>本サービスは助産師による産後ケア（母子の健康相談、授乳支援、育児相談、シッター業務等）を提供するものです。医療行為には該当しません。</p>
+
+      <h3>2. 訪問時の対応について</h3>
+      <ul>
+        <li>当日のママとお子さまの体調を最優先し、臨機応変に対応いたします。</li>
+        <li>ご利用者様の安全確保のため、場合によってはサービス内容を変更させていただくことがあります。</li>
+      </ul>
+
+      <h3>3. キャンセル・変更について</h3>
+      <ul>
+        <li>ご予約のキャンセル・変更は前日までにご連絡ください。</li>
+        <li>当日キャンセルの場合は、キャンセル料が発生することがあります。</li>
+      </ul>
+
+      <h3>4. 個人情報の取り扱い</h3>
+      <p>ご提供いただいた個人情報は、本サービスの提供およびご連絡のみに使用し、第三者に提供することはございません。</p>
+
+      <h3>5. 免責事項</h3>
+      <p>天災、交通機関の乱れ、その他やむを得ない事由によりサービスを提供できない場合、当方は一切の責任を負いかねます。</p>
+
+      <p style="margin-top:14px; color:#8a7a6a; font-size:12px;">※ これはデモ用の仮テキストです。実際の同意書文面に差し替え予定です。</p>
+    </div>
+
+    <div class="consent-check" id="consentCheckBox">
+      <input type="checkbox" id="consentCheckbox">
+      <label for="consentCheckbox">上記の内容を確認しました・同意します</label>
+    </div>
+
+    <button class="btn-primary" id="submitBookingBtn" disabled>予約を確定する</button>
+  </div>
+
+  <!-- Step 5: 完了 -->
+  <div class="view" id="view-complete">
+    <div class="complete-icon">✓</div>
+    <div class="complete-title">ご予約が完了しました</div>
+    <div class="complete-message">
+      この度はご予約いただきありがとうございます。<br>
+      予約内容は以下の通りです。
+    </div>
+
+    <div class="complete-summary" id="completeSummary"></div>
+
+    <div class="complete-notice">
+      📩 ご登録のメールアドレス宛に予約確認メールを送信しました。<br>
+      当日お会いできますことを楽しみにしております。
+    </div>
+
+    <button class="btn-secondary" id="restartBtn">最初の画面に戻る（デモ用）</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">読み込み中…</div>
+</div>
+<div class="error-toast" id="errorToast"></div>
+
+<script>
+// ============================================================
+// 設定 — ここを書き換えるとLIVE接続モードになる
+// ============================================================
+const CONFIG = {
+  // LIFF ID（LINE Developersコンソールで発行）
+  // 空のままならLIFF初期化をスキップ（デモモードで動作）
+  LIFF_ID: '',
+
+  // GAS Webアプリ URL
+  // 空のままならモックデータで動作
+  GAS_ENDPOINT: 'https://script.google.com/macros/s/AKfycbw5fRkuSKeus2jUKdlg3IOgqkeVKjR4jZ05T51lwA9iMDXPp81dqIgv4qS69XwahL6M/exec',
+};
+
+// 接続モード判定
+const IS_LIVE = !!CONFIG.GAS_ENDPOINT;
+const HAS_LIFF = !!CONFIG.LIFF_ID;
+
+// LINEユーザー情報（LIFF経由で取得）
+let lineProfile = { userId: '', displayName: '' };
+
+// ============================================================
+// 初期化
+// ============================================================
+(async function init() {
+  // モードバナーを更新
+  if (IS_LIVE) {
+    const banner = document.getElementById('modeBanner');
+    banner.textContent = '🌿 LIVEモード — GAS接続中';
+    banner.classList.add('live');
+  }
+
+  // LIFF初期化（設定されていれば）
+  if (HAS_LIFF && typeof liff !== 'undefined') {
+    try {
+      await liff.init({ liffId: CONFIG.LIFF_ID });
+      if (liff.isLoggedIn()) {
+        const profile = await liff.getProfile();
+        lineProfile.userId = profile.userId;
+        lineProfile.displayName = profile.displayName;
+      } else {
+        // LIFF外からアクセスされた場合
+        liff.login();
+      }
+    } catch (err) {
+      console.error('LIFF init error:', err);
+      showError('LINE連携に失敗しました。画面は表示されますが通知が送れません。');
+    }
+  }
+})();
+
+// ============================================================
+// UI ヘルパー
+// ============================================================
+function showLoading(text) {
+  document.getElementById('loadingText').textContent = text || '読み込み中…';
+  document.getElementById('loadingOverlay').classList.add('active');
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.remove('active');
+}
+function showError(msg) {
+  const el = document.getElementById('errorToast');
+  el.textContent = msg;
+  el.classList.add('active');
+  setTimeout(() => el.classList.remove('active'), 4000);
+}
+
+// ============================================================
+// API クライアント
+// ============================================================
+async function apiGetSlots(planId) {
+  const url = `${CONFIG.GAS_ENDPOINT}?action=getSlots&plan=${encodeURIComponent(planId)}`;
+  const res = await fetch(url, { method: 'GET' });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'getSlots failed');
+  return data.slots; // [{date, start, end}, ...]
+}
+
+async function apiCreateBooking(payload) {
+  // GASはpreflight非対応なのでtext/plainで送る
+  const res = await fetch(CONFIG.GAS_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'createBooking failed');
+  return data;
+}
+
+// ============================================================
+// デモ用モックデータ
+// ============================================================
+// 業務用カレンダー上「予定が入っていない」とみなす空き時間の想定モック
+// 実運用ではGoogle Calendar APIから取得する
+// 形式: { "YYYY-MM-DD": [{start:"HH:MM", end:"HH:MM"}, ...] }
+// 営業時間は9:00-17:00
+
+function generateMockCalendar() {
+  const today = new Date();
+  const mock = {};
+  // 14日〜60日先までをランダムに空き時間として生成
+  for (let i = 2; i <= 60; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const key = `${y}-${m}-${day}`;
+
+    // デモ用パターン：日によって異なる空き方
+    const pattern = i % 5;
+    if (pattern === 0) {
+      // 空きなし
+      continue;
+    } else if (pattern === 1) {
+      // 午前のみ（9:00-12:30）
+      mock[key] = [{start: "09:00", end: "12:30"}];
+    } else if (pattern === 2) {
+      // 午後のみ（13:00-17:00）
+      mock[key] = [{start: "13:00", end: "17:00"}];
+    } else if (pattern === 3) {
+      // 1日フル（9:00-17:00）
+      mock[key] = [{start: "09:00", end: "17:00"}];
+    } else {
+      // 分断（9:00-11:30 と 14:00-17:00）
+      mock[key] = [
+        {start: "09:00", end: "11:30"},
+        {start: "14:00", end: "17:00"}
+      ];
+    }
+  }
+  return mock;
+}
+
+const MOCK_CALENDAR = generateMockCalendar();
+
+// ============================================================
+// State
+// ============================================================
+const state = {
+  step: 1,
+  plan: null,
+  date: null,
+  startTime: null,
+  endTime: null,
+  currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  formData: {},
+  // date -> [{start, end}, ...] のキャッシュ（プラン選択時にAPIから取得）
+  slotsByDate: {},
+};
+
+const VIEWS = ['view-plan', 'view-calendar', 'view-form', 'view-consent', 'view-complete'];
+const HEADER_TITLES = ['プラン選択', '日時選択', 'お客様情報', '同意書確認', '予約完了'];
+
+// ============================================================
+// 画面切替
+// ============================================================
+function showStep(step) {
+  state.step = step;
+  VIEWS.forEach((id, i) => {
+    document.getElementById(id).classList.toggle('active', i === step - 1);
+  });
+  const dots = document.querySelectorAll('.step-dot');
+  dots.forEach((dot, i) => {
+    dot.classList.remove('active', 'done');
+    if (i < step - 1) dot.classList.add('done');
+    else if (i === step - 1) dot.classList.add('active');
+  });
+  document.getElementById('headerTitle').textContent = HEADER_TITLES[step - 1];
+  document.getElementById('backBtn').disabled = (step === 1 || step === 5);
+  window.scrollTo(0, 0);
+}
+
+document.getElementById('backBtn').addEventListener('click', () => {
+  if (state.step > 1) showStep(state.step - 1);
+});
+
+// ============================================================
+// Step 1: プラン選択
+// ============================================================
+document.querySelectorAll('.plan-card').forEach(card => {
+  card.addEventListener('click', async () => {
+    state.plan = {
+      id: card.dataset.plan,
+      name: card.dataset.name,
+      duration: parseFloat(card.dataset.duration),
+      badge: card.querySelector('.plan-badge').textContent,
+    };
+    state.slotsByDate = {};
+    state.date = null;
+
+    // LIVEモードならAPIから空き枠取得
+    if (IS_LIVE) {
+      showLoading('空き枠を確認中…');
+      try {
+        const slots = await apiGetSlots(state.plan.id);
+        // date別にグルーピング
+        slots.forEach(s => {
+          if (!state.slotsByDate[s.date]) state.slotsByDate[s.date] = [];
+          state.slotsByDate[s.date].push({ start: s.start, end: s.end });
+        });
+      } catch (err) {
+        hideLoading();
+        showError('空き枠の取得に失敗しました: ' + err.message);
+        return;
+      }
+      hideLoading();
+    }
+
+    renderCalendar();
+    showStep(2);
+  });
+});
+
+// ============================================================
+// Step 2: カレンダー
+// ============================================================
+document.getElementById('changePlanBtn').addEventListener('click', () => showStep(1));
+
+function renderCalendar() {
+  const planText = `${state.plan.badge}｜${state.plan.duration}時間`;
+  document.getElementById('selectedPlanText').textContent = planText;
+
+  const year = state.currentMonth.getFullYear();
+  const month = state.currentMonth.getMonth();
+  document.getElementById('calendarMonth').textContent = `${year}年${month + 1}月`;
+
+  // 前月ボタン：今月より前には戻れない
+  const today = new Date();
+  const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  document.getElementById('prevMonthBtn').disabled = state.currentMonth <= thisMonth;
+
+  const grid = document.getElementById('calendarGrid');
+  grid.innerHTML = '';
+
+  // 曜日ヘッダー
+  const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+  weekdays.forEach((w, i) => {
+    const el = document.createElement('div');
+    el.className = 'calendar-weekday' + (i === 0 ? ' sun' : i === 6 ? ' sat' : '');
+    el.textContent = w;
+    grid.appendChild(el);
+  });
+
+  // 日付セル
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startWeekday = firstDay.getDay();
+
+  // 前の空白セル
+  for (let i = 0; i < startWeekday; i++) {
+    const el = document.createElement('div');
+    el.className = 'calendar-day empty';
+    grid.appendChild(el);
+  }
+
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+  const minBookingDate = new Date(todayDate);
+  minBookingDate.setDate(minBookingDate.getDate() + 2); // 2日前まで
+
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const date = new Date(year, month, d);
+    const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const el = document.createElement('div');
+    el.className = 'calendar-day';
+
+    const isTooSoon = date < minBookingDate;
+    const availableSlots = isTooSoon ? [] : getAvailableSlotsForDate(key, state.plan.duration);
+
+    if (isTooSoon || availableSlots.length === 0) {
+      el.classList.add('disabled');
+      el.innerHTML = `<div>${d}</div>`;
+    } else {
+      el.classList.add('available');
+      el.innerHTML = `<div>${d}</div><div class="slot-indicator"></div>`;
+      el.addEventListener('click', () => selectDate(key, el));
+    }
+
+    if (state.date === key) el.classList.add('selected');
+    grid.appendChild(el);
+  }
+}
+
+// 指定日の空き時間から、プラン時間が入るスロットを30分刻みで切り出す
+function getAvailableSlotsForDate(dateKey, durationHours) {
+  // LIVEモード：APIから取得済みのキャッシュを使う
+  if (IS_LIVE) {
+    return state.slotsByDate[dateKey] || [];
+  }
+
+  // デモモード：モックデータから動的に算出
+  const freeBlocks = MOCK_CALENDAR[dateKey] || [];
+  const slots = [];
+  const durationMin = durationHours * 60;
+
+  freeBlocks.forEach(block => {
+    const startMin = toMinutes(block.start);
+    const endMin = toMinutes(block.end);
+    for (let s = startMin; s + durationMin <= endMin; s += 30) {
+      slots.push({
+        start: toHHMM(s),
+        end: toHHMM(s + durationMin),
+      });
+    }
+  });
+  return slots;
+}
+
+function toMinutes(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+function toHHMM(min) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function selectDate(dateKey, el) {
+  state.date = dateKey;
+  document.querySelectorAll('.calendar-day.selected').forEach(d => d.classList.remove('selected'));
+  el.classList.add('selected');
+  renderTimeSlots(dateKey);
+}
+
+function renderTimeSlots(dateKey) {
+  const section = document.getElementById('timeSlotsSection');
+  const content = document.getElementById('timeSlotsContent');
+  const title = document.getElementById('timeSlotsTitle');
+  section.style.display = 'block';
+
+  const [y, m, d] = dateKey.split('-');
+  const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+  const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+  title.textContent = `${parseInt(m)}月${parseInt(d)}日（${weekdays[dateObj.getDay()]}）の空き時間`;
+
+  const slots = getAvailableSlotsForDate(dateKey, state.plan.duration);
+  if (slots.length === 0) {
+    content.innerHTML = '<div class="time-slots-empty">この日は空き枠がありません</div>';
+    return;
+  }
+
+  content.innerHTML = '<div class="time-slots-grid">' +
+    slots.map((s, i) => `<button class="time-slot" data-i="${i}">${s.start}〜${s.end}</button>`).join('') +
+    '</div>';
+
+  content.querySelectorAll('.time-slot').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = parseInt(btn.dataset.i);
+      state.startTime = slots[i].start;
+      state.endTime = slots[i].end;
+      renderForm();
+      showStep(3);
+    });
+  });
+}
+
+document.getElementById('prevMonthBtn').addEventListener('click', () => {
+  state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() - 1, 1);
+  renderCalendar();
+});
+document.getElementById('nextMonthBtn').addEventListener('click', () => {
+  state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + 1, 1);
+  renderCalendar();
+});
+
+// ============================================================
+// Step 3: フォーム
+// ============================================================
+function renderForm() {
+  const [y, m, d] = state.date.split('-');
+  const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+  const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+  const dateText = `${parseInt(m)}月${parseInt(d)}日（${weekdays[dateObj.getDay()]}）`;
+
+  document.getElementById('bookingSummary').innerHTML = `
+    <div class="booking-summary-row"><span class="label">プラン</span><span class="value">${state.plan.badge}</span></div>
+    <div class="booking-summary-row"><span class="label">所要時間</span><span class="value">${state.plan.duration}時間</span></div>
+    <div class="booking-summary-row"><span class="label">日付</span><span class="value">${dateText}</span></div>
+    <div class="booking-summary-row"><span class="label">時間</span><span class="value">${state.startTime}〜${state.endTime}</span></div>
+  `;
+}
+
+document.getElementById('bookingForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = document.getElementById('inputName').value.trim();
+  const address = document.getElementById('inputAddress').value.trim();
+  const phone = document.getElementById('inputPhone').value.trim();
+  const email = document.getElementById('inputEmail').value.trim();
+
+  let valid = true;
+  document.getElementById('errorName').textContent = '';
+  document.getElementById('errorAddress').textContent = '';
+  document.getElementById('errorPhone').textContent = '';
+  document.getElementById('errorEmail').textContent = '';
+
+  if (!name) { document.getElementById('errorName').textContent = 'お名前を入力してください'; valid = false; }
+  if (!address) { document.getElementById('errorAddress').textContent = 'ご住所を入力してください'; valid = false; }
+  if (!phone) { document.getElementById('errorPhone').textContent = '電話番号を入力してください'; valid = false; }
+  else if (!/^[\d\-+() ]{10,}$/.test(phone)) { document.getElementById('errorPhone').textContent = '電話番号の形式が正しくありません'; valid = false; }
+  if (!email) { document.getElementById('errorEmail').textContent = 'メールアドレスを入力してください'; valid = false; }
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { document.getElementById('errorEmail').textContent = 'メールアドレスの形式が正しくありません'; valid = false; }
+
+  if (!valid) return;
+
+  state.formData = { name, address, phone, email };
+  // 同意書へ進むときはチェックをリセット
+  document.getElementById('consentCheckbox').checked = false;
+  document.getElementById('submitBookingBtn').disabled = true;
+  document.getElementById('consentCheckBox').classList.remove('checked');
+  showStep(4);
+});
+
+// ============================================================
+// Step 4: 同意書
+// ============================================================
+document.getElementById('consentCheckbox').addEventListener('change', (e) => {
+  const checked = e.target.checked;
+  document.getElementById('submitBookingBtn').disabled = !checked;
+  document.getElementById('consentCheckBox').classList.toggle('checked', checked);
+});
+document.getElementById('consentCheckBox').addEventListener('click', (e) => {
+  if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL') {
+    const cb = document.getElementById('consentCheckbox');
+    cb.checked = !cb.checked;
+    cb.dispatchEvent(new Event('change'));
+  }
+});
+
+document.getElementById('submitBookingBtn').addEventListener('click', async () => {
+  if (IS_LIVE) {
+    showLoading('予約を確定しています…');
+    try {
+      const result = await apiCreateBooking({
+        action: 'createBooking',
+        plan: state.plan.id,
+        date: state.date,
+        startTime: state.startTime,
+        endTime: state.endTime,
+        name: state.formData.name,
+        address: state.formData.address,
+        phone: state.formData.phone,
+        email: state.formData.email,
+        consentAgreed: true,
+        lineUserId: lineProfile.userId,
+        lineDisplayName: lineProfile.displayName,
+      });
+      state.bookingId = result.bookingId;
+    } catch (err) {
+      hideLoading();
+      showError('予約の確定に失敗しました: ' + err.message);
+      return;
+    }
+    hideLoading();
+  }
+  renderComplete();
+  showStep(5);
+});
+
+// ============================================================
+// Step 5: 完了
+// ============================================================
+function renderComplete() {
+  const [y, m, d] = state.date.split('-');
+  const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+  const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+  const dateText = `${y}年${parseInt(m)}月${parseInt(d)}日（${weekdays[dateObj.getDay()]}）`;
+
+  const idRow = state.bookingId
+    ? `<div class="booking-summary-row"><span class="label">予約ID</span><span class="value">${state.bookingId}</span></div>`
+    : '';
+  document.getElementById('completeSummary').innerHTML = `
+    <h4>ご予約内容</h4>
+    ${idRow}
+    <div class="booking-summary-row"><span class="label">プラン</span><span class="value">${state.plan.badge}（${state.plan.duration}h）</span></div>
+    <div class="booking-summary-row"><span class="label">日時</span><span class="value">${dateText}</span></div>
+    <div class="booking-summary-row"><span class="label">時間</span><span class="value">${state.startTime}〜${state.endTime}</span></div>
+    <div class="booking-summary-row"><span class="label">お名前</span><span class="value">${state.formData.name} 様</span></div>
+  `;
+}
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  state.plan = null;
+  state.date = null;
+  state.startTime = null;
+  state.endTime = null;
+  state.formData = {};
+  state.bookingId = null;
+  state.slotsByDate = {};
+  document.getElementById('bookingForm').reset();
+  showStep(1);
+});
+</script>
+</body>
+</html>

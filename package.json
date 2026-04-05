@@ -1,0 +1,21 @@
+{
+  "name": "midwife-booking",
+  "version": "0.1.0",
+  "private": true,
+  "description": "産後ケア訪問サービス予約システム（GAS + LIFF）",
+  "scripts": {
+    "login": "clasp login",
+    "logout": "clasp logout",
+    "create": "clasp create --type standalone --title \"予約システム\" --rootDir gas",
+    "clone": "clasp clone",
+    "push": "clasp push",
+    "pull": "clasp pull",
+    "open": "clasp open",
+    "deploy": "clasp deploy --description \"booking system\"",
+    "deployments": "clasp deployments",
+    "logs": "clasp logs"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2"
+  }
+}
