@@ -186,6 +186,49 @@ function helper_testCreateBooking() {
 }
 
 /**
+ * ヘルパー: 3カレンダーの中身を個別にダンプ（診断用）
+ */
+function helper_debugCalendars() {
+  const today = new Date();
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() + MIN_DAYS_AHEAD);
+  startDate.setHours(0, 0, 0, 0);
+  const endDate = new Date(today);
+  endDate.setDate(endDate.getDate() + 14); // 2週間だけ見る
+  endDate.setHours(23, 59, 59, 999);
+
+  Logger.log(`=== 期間: ${formatDate(startDate)} 〜 ${formatDate(endDate)} ===`);
+
+  const targets = [
+    { key: CALENDAR_KEYS.BUSINESS, label: '業務カレンダー' },
+    { key: CALENDAR_KEYS.PRIVATE, label: 'プライベート' },
+    { key: CALENDAR_KEYS.WORKABLE, label: '保育園タイム' },
+  ];
+
+  targets.forEach(t => {
+    const id = PropertiesService.getScriptProperties().getProperty(t.key);
+    Logger.log(`\n--- ${t.label} (${t.key}) ---`);
+    Logger.log(`ID: ${id || '(未設定)'}`);
+    if (!id) return;
+    try {
+      const cal = CalendarApp.getCalendarById(id);
+      if (!cal) {
+        Logger.log('❌ カレンダーが見つかりません');
+        return;
+      }
+      Logger.log(`名前: ${cal.getName()}`);
+      const events = cal.getEvents(startDate, endDate);
+      Logger.log(`予定件数: ${events.length}`);
+      events.forEach(ev => {
+        Logger.log(`  ${formatDate(ev.getStartTime())} ${formatTime(ev.getStartTime())}-${formatTime(ev.getEndTime())} : ${ev.getTitle()}`);
+      });
+    } catch (e) {
+      Logger.log(`❌ エラー: ${e.message}`);
+    }
+  });
+}
+
+/**
  * ヘルパー8: デプロイ後のWebアプリURLを確認
  */
 function helper_showWebAppUrl() {

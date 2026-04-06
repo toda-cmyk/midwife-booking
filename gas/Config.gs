@@ -75,10 +75,19 @@ const MAX_DAYS_AHEAD = 60;  // 最長何日先まで表示するか
 const SLOT_STEP_MINUTES = 30; // 空き枠の切り出し刻み（分）
 
 // プラン定義（デモHTMLと一致させる）
+// startEarliest/startLatest: スタート時間の許容範囲（HH:MM）
+// minDaysAhead: 最短何日先から予約可能か
+// maxDaysAhead: 最長何日先まで表示するか（未指定ならグローバルのMAX_DAYS_AHEAD）
 const PLANS = {
-  premium: { id: 'premium', name: 'オーダーメイドプラン', badge: 'プレミアム', durationHours: 3 },
-  basic:   { id: 'basic',   name: 'シッタープラン＋選べるケア', badge: 'ベーシック', durationHours: 2.5 },
-  special: { id: 'special', name: '1日貸切 産後徹底伴走VIPプラン', badge: 'スペシャル', durationHours: 7 },
+  premium: { id: 'premium', name: 'オーダーメイドプラン', badge: 'プレミアム', durationHours: 3,   startEarliest: '10:00', startLatest: '13:00', minDaysAhead: 30 },
+  basic:   { id: 'basic',   name: 'シッタープラン＋選べるケア', badge: 'ベーシック', durationHours: 2.5, startEarliest: '10:00', startLatest: '13:00', minDaysAhead: 7 },
+  special: { id: 'special', name: '1日貸切 産後徹底伴走VIPプラン', badge: 'スペシャル', durationHours: 7,   startEarliest: '10:00', startLatest: '10:00', minDaysAhead: 30 },
+};
+
+// 曜日別の受付終了時刻（0=日, 1=月, ..., 4=木, 6=土）
+// 未定義の曜日は BUSINESS_HOURS.END を使う
+const DAY_END_OVERRIDE = {
+  4: '12:00',  // 木曜日: 12:00 以降は受付しない
 };
 
 function getPlan(planId) {

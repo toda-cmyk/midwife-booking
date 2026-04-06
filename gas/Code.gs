@@ -24,7 +24,7 @@ function doGet(e) {
       const planId = e.parameter.plan;
       if (!planId) return jsonError('plan parameter is required');
       const plan = getPlan(planId);
-      const slots = getAvailableSlots(plan.durationHours);
+      const slots = getAvailableSlots(plan.durationHours, plan);
       return jsonResponse({ ok: true, plan: plan, slots: slots });
     }
 

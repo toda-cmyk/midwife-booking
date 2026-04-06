@@ -24,16 +24,19 @@ const TZ = 'Asia/Tokyo';
  * @param {number} durationHours プラン時間（例: 2.5, 3, 7）
  * @return {Array<{date:string, start:string, end:string}>}
  */
-function getAvailableSlots(durationHours) {
+function getAvailableSlots(durationHours, plan) {
   const businessCal = CalendarApp.getCalendarById(getConfig('BUSINESS_CALENDAR_ID'));
   if (!businessCal) throw new Error('Business calendar not found');
 
   const privateCal = getOptionalCalendar(CALENDAR_KEYS.PRIVATE);
   const workableCal = getOptionalCalendar(CALENDAR_KEYS.WORKABLE);
 
+  // プラン別の最短予約日数を取得（未指定ならMIN_DAYS_AHEAD）
+  const minDays = (plan && plan.minDaysAhead !== undefined) ? plan.minDaysAhead : MIN_DAYS_AHEAD;
+
   const today = new Date();
   const startDate = new Date(today);
-  startDate.setDate(startDate.getDate() + MIN_DAYS_AHEAD);
+  startDate.setDate(startDate.getDate() + minDays);
   startDate.setHours(0, 0, 0, 0);
 
   const endDate = new Date(today);
@@ -59,9 +62,14 @@ function getAvailableSlots(durationHours) {
     const d = new Date(t);
     const dateKey = formatDate(d);
 
-    // その日の営業時間（9:00 - 17:00）
+    // その日の営業時間（曜日別の終了時刻オーバーライドを適用）
+    const dayOfWeek = d.getDay(); // 0=日, 4=木
+    const dayEndTime = DAY_END_OVERRIDE[dayOfWeek] || BUSINESS_HOURS.END;
     const bizStart = buildDate(d, BUSINESS_HOURS.START);
-    const bizEnd = buildDate(d, BUSINESS_HOURS.END);
+    const bizEnd = buildDate(d, dayEndTime);
+
+    // 営業時間が0以下の日はスキップ（例：木曜12:00終了で開始9:00だが、プランが入らないケースは下で弾く）
+    if (bizStart.getTime() >= bizEnd.getTime()) continue;
 
     // 稼働可能ブロックを算出（WORKABLEがあればその予定内、なければ営業時間全体）
     const workableBlocks = workableCal
@@ -73,11 +81,24 @@ function getAvailableSlots(durationHours) {
     // ブロック対象（業務＋プライベート）の予定をその日の範囲で抽出
     const dayBlocking = extractDayRanges(blockingEvents, bizStart, bizEnd);
 
+    // 1日1件ルール：業務カレンダーに既に予約がある日はスキップ
+    const dayBusinessEvents = blockingEvents.filter(ev =>
+      ev.getStartTime() < bizEnd && ev.getEndTime() > bizStart
+    );
+    const hasExistingBooking = dayBusinessEvents.some(ev =>
+      ev.getTitle && ev.getTitle().startsWith('【予約】')
+    );
+    if (hasExistingBooking) continue;
+
     // 稼働可能ブロックから、ブロック予定を引いて空きブロックを算出
     const freeBlocks = [];
     for (const workable of workableBlocks) {
       freeBlocks.push(...subtractRanges(workable, dayBlocking));
     }
+
+    // プラン別スタート時間制限
+    const startEarliestMin = plan && plan.startEarliest ? toMinutesHHMM(plan.startEarliest) : 0;
+    const startLatestMin = plan && plan.startLatest ? toMinutesHHMM(plan.startLatest) : 24 * 60;
 
     // 各空きブロックから30分刻みでプラン時間分の枠を切り出す
     for (const block of freeBlocks) {
@@ -87,6 +108,11 @@ function getAvailableSlots(durationHours) {
       for (let s = block.start; s + durationMin * 60000 <= block.end; s += SLOT_STEP_MINUTES * 60000) {
         const slotStart = new Date(s);
         const slotEnd = new Date(s + durationMin * 60000);
+
+        // スタート時間がプラン許容範囲内か
+        const startMinOfDay = slotStart.getHours() * 60 + slotStart.getMinutes();
+        if (startMinOfDay < startEarliestMin || startMinOfDay > startLatestMin) continue;
+
         slots.push({
           date: dateKey,
           start: formatTime(slotStart),
@@ -220,6 +246,12 @@ function subtractRanges(baseRange, blockRanges) {
 // ============================================================
 // 日付ユーティリティ
 // ============================================================
+
+/** "HH:MM" → 分数に変換 */
+function toMinutesHHMM(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
 
 function formatDate(d) {
   return Utilities.formatDate(d, TZ, 'yyyy-MM-dd');
