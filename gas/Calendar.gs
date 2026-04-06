@@ -31,8 +31,9 @@ function getAvailableSlots(durationHours, plan) {
   const privateCal = getOptionalCalendar(CALENDAR_KEYS.PRIVATE);
   const workableCal = getOptionalCalendar(CALENDAR_KEYS.WORKABLE);
 
-  // プラン別の最短予約日数を取得（未指定ならMIN_DAYS_AHEAD）
+  // プラン別の予約可能期間を取得
   const minDays = (plan && plan.minDaysAhead !== undefined) ? plan.minDaysAhead : MIN_DAYS_AHEAD;
+  const maxDays = (plan && plan.maxDaysAhead !== undefined) ? plan.maxDaysAhead : MAX_DAYS_AHEAD;
 
   const today = new Date();
   const startDate = new Date(today);
@@ -40,7 +41,7 @@ function getAvailableSlots(durationHours, plan) {
   startDate.setHours(0, 0, 0, 0);
 
   const endDate = new Date(today);
-  endDate.setDate(endDate.getDate() + MAX_DAYS_AHEAD);
+  endDate.setDate(endDate.getDate() + maxDays);
   endDate.setHours(23, 59, 59, 999);
 
   // ブロック対象カレンダー（業務＋プライベート）の予定を一括取得
