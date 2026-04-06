@@ -943,6 +943,15 @@ document.querySelectorAll('.plan-card').forEach(card => {
         return;
       }
       hideLoading();
+
+      // 空き枠がある最初の月にカレンダーを自動移動
+      const firstAvailableDate = Object.keys(state.slotsByDate).sort()[0];
+      if (firstAvailableDate) {
+        const [y, m] = firstAvailableDate.split('-').map(Number);
+        state.currentMonth = new Date(y, m - 1, 1);
+      } else {
+        state.currentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      }
     }
 
     renderCalendar();
