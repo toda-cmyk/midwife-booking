@@ -24,37 +24,51 @@ function formatDateJa(dateStr) {
 /**
  * 予約者宛て：予約確認メール
  */
+/**
+ * 予約者向け共通文面を生成（メール・LINE共通）
+ */
+function buildUserConfirmationText(booking) {
+  const dateJa = formatDateJa(booking.date);
+  return [
+    `🌸 ご予約ありがとうございます`,
+    ``,
+    `以下の内容で承りました。`,
+    ``,
+    `━━━━━━━━━━━━`,
+    `予約ID: ${booking.bookingId}`,
+    ``,
+    `【プラン】`,
+    `${booking.plan.badge}（${booking.plan.durationHours}h）`,
+    ``,
+    `【日時】`,
+    `${dateJa}`,
+    `${booking.startTime}〜${booking.endTime}`,
+    ``,
+    `【お名前】`,
+    `${booking.name} 様`,
+    ``,
+    `【訪問先ご住所】`,
+    `${booking.address}`,
+    ``,
+    `【お電話】`,
+    `${booking.phone}`,
+    `━━━━━━━━━━━━`,
+    ``,
+    `※キャンセル・変更は前日までにご連絡ください。`,
+    ``,
+    `📌事前カウンセリングのお願い（任意）`,
+    `当日の時間を最大限ママのために使うため、事前のシート入力にご協力いただけますと幸いです。いただいた内容をもとに、オーダーメイドのケアプランを準備いたします。`,
+    ``,
+    `👇【カウンセリングフォーム】`,
+    `https://forms.gle/2vXpX5njxxkrAek8A`,
+  ].join('\n');
+}
+
 function sendEmailToUser(booking) {
   const serviceName = getConfigOrDefault('SERVICE_NAME', '産後ケア訪問サービス');
   const senderName = getConfigOrDefault('SENDER_NAME', '助産師');
-  const dateJa = formatDateJa(booking.date);
-
   const subject = `【${serviceName}】ご予約ありがとうございます（${booking.bookingId}）`;
-  const body = [
-    `${booking.name} 様`,
-    ``,
-    `この度はご予約いただき、誠にありがとうございます。`,
-    `以下の内容でご予約を承りました。`,
-    ``,
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `予約ID: ${booking.bookingId}`,
-    ``,
-    `プラン: ${booking.plan.badge}（${booking.plan.durationHours}時間）`,
-    `        ${booking.plan.name}`,
-    ``,
-    `日時: ${dateJa}`,
-    `時間: ${booking.startTime}〜${booking.endTime}`,
-    ``,
-    `ご住所: ${booking.address}`,
-    `お電話: ${booking.phone}`,
-    `━━━━━━━━━━━━━━━━━━━━`,
-    ``,
-    `※ ご予約のキャンセル・変更は前日までにご連絡ください。`,
-    `※ 当日お会いできますことを楽しみにしております。`,
-    ``,
-    `${senderName}`,
-  ].join('\n');
-
+  const body = buildUserConfirmationText(booking);
   GmailApp.sendEmail(booking.email, subject, body, { name: senderName });
 }
 
@@ -102,36 +116,7 @@ function sendEmailToOwner(booking) {
  */
 function sendLineToUser(booking) {
   if (!booking.lineUserId) return; // LIFF経由でない場合はスキップ
-
-  const dateJa = formatDateJa(booking.date);
-  const text = [
-    `🌸 ご予約ありがとうございます`,
-    ``,
-    `以下の内容で承りました。`,
-    ``,
-    `━━━━━━━━━━━━`,
-    `予約ID: ${booking.bookingId}`,
-    ``,
-    `【プラン】`,
-    `${booking.plan.badge}（${booking.plan.durationHours}h）`,
-    ``,
-    `【日時】`,
-    `${dateJa}`,
-    `${booking.startTime}〜${booking.endTime}`,
-    ``,
-    `【お名前】`,
-    `${booking.name} 様`,
-    `━━━━━━━━━━━━`,
-    ``,
-    `※キャンセル・変更は前日までにご連絡ください。`,
-    ``,
-    `📌事前カウンセリングのお願い（任意）`,
-    `当日の時間を最大限ママのために使うため、事前のシート入力にご協力いただけますと幸いです。いただいた内容をもとに、オーダーメイドのケアプランを準備いたします。`,
-    ``,
-    `👇【カウンセリングフォーム】`,
-    `https://forms.gle/2vXpX5njxxkrAek8A`,
-  ].join('\n');
-
+  const text = buildUserConfirmationText(booking);
   linePush(booking.lineUserId, text);
 }
 
