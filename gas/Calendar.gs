@@ -72,9 +72,11 @@ function getAvailableSlots(durationHours, plan) {
     if (bizStart.getTime() >= bizEnd.getTime()) continue;
 
     // 稼働可能ブロックを算出（WORKABLEがあればその予定内、なければ営業時間全体）
-    const workableBlocks = workableCal
+    // 重複する予定をマージして重複スロットを防止
+    const rawWorkable = workableCal
       ? extractDayRanges(workableEvents, bizStart, bizEnd)
       : [{ start: bizStart.getTime(), end: bizEnd.getTime() }];
+    const workableBlocks = mergeOverlappingRanges(rawWorkable);
 
     if (workableBlocks.length === 0) continue; // その日は稼働不可
 
@@ -246,6 +248,24 @@ function subtractRanges(baseRange, blockRanges) {
 // ============================================================
 // 日付ユーティリティ
 // ============================================================
+
+/**
+ * 重複・隣接する時間範囲をマージする
+ * 入力はソート済み前提（extractDayRangesがソートして返すため）
+ */
+function mergeOverlappingRanges(ranges) {
+  if (ranges.length <= 1) return ranges;
+  const merged = [{ ...ranges[0] }];
+  for (let i = 1; i < ranges.length; i++) {
+    const last = merged[merged.length - 1];
+    if (ranges[i].start <= last.end) {
+      last.end = Math.max(last.end, ranges[i].end);
+    } else {
+      merged.push({ ...ranges[i] });
+    }
+  }
+  return merged;
+}
 
 /** "HH:MM" → 分数に変換 */
 function toMinutesHHMM(hhmm) {
