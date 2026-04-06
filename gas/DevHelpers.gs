@@ -229,6 +229,30 @@ function helper_debugCalendars() {
 }
 
 /**
+ * ヘルパー: 前日リマインドの毎日13時トリガーを設定（1回だけ実行）
+ */
+function helper_setupReminderTrigger() {
+  // 既存の同名トリガーを削除
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(t => {
+    if (t.getHandlerFunction() === 'sendDayBeforeReminders') {
+      ScriptApp.deleteTrigger(t);
+      Logger.log('既存トリガーを削除しました。');
+    }
+  });
+
+  // 毎日13:00に実行するトリガーを作成
+  ScriptApp.newTrigger('sendDayBeforeReminders')
+    .timeBased()
+    .everyDays(1)
+    .atHour(13)
+    .nearMinute(0)
+    .create();
+  Logger.log('✅ 前日リマインドトリガー設定完了: 毎日13:00に実行');
+  Logger.log('→ 翌日の予約を持つユーザーにLINEリマインドを送信します。');
+}
+
+/**
  * ヘルパー8: デプロイ後のWebアプリURLを確認
  */
 function helper_showWebAppUrl() {
