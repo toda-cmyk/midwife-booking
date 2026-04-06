@@ -79,9 +79,9 @@ const SLOT_STEP_MINUTES = 30; // 空き枠の切り出し刻み（分）
 // minDaysAhead: 最短何日先から予約可能か
 // maxDaysAhead: 最長何日先まで表示するか（未指定ならグローバルのMAX_DAYS_AHEAD）
 const PLANS = {
-  premium: { id: 'premium', name: 'オーダーメイドプラン', badge: 'プレミアム', durationHours: 3,   startEarliest: '10:00', startLatest: '13:00', minDaysAhead: 30 },
+  premium: { id: 'premium', name: 'オーダーメイドプラン', badge: 'プレミアム', durationHours: 3,   startEarliest: '10:00', startLatest: '13:00', minDaysAhead: 2, maxDaysAhead: 30 },
   basic:   { id: 'basic',   name: 'シッタープラン＋選べるケア', badge: 'ベーシック', durationHours: 2.5, startEarliest: '10:00', startLatest: '13:00', minDaysAhead: 2, maxDaysAhead: 7 },
-  special: { id: 'special', name: '1日貸切 オーダーメイドVIPプラン', badge: 'スペシャル', durationHours: 7,   startEarliest: '09:00', startLatest: '09:00', minDaysAhead: 30 },
+  special: { id: 'special', name: '1日貸切 オーダーメイドVIPプラン', badge: 'スペシャル', durationHours: 7,   startEarliest: '09:00', startLatest: '09:00', minDaysAhead: 2, maxDaysAhead: 30 },
 };
 
 // 曜日別の受付終了時刻（0=日, 1=月, ..., 4=木, 6=土）
